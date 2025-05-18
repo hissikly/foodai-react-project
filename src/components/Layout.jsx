@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 export default function Layout({ children }) {
   const navigate = useNavigate();
@@ -8,32 +8,43 @@ export default function Layout({ children }) {
   return (
     <div className="min-h-screen bg-gradient-to-b from-green-50 to-white text-gray-800">
       {/* Header */}
-      <header className="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-10">
-        <h1 className="text-xl font-bold text-green-600">ЕдAI</h1>
-        <nav className="flex space-x-2">
-          <button 
-            onClick={() => navigate('/')} 
-            className={`p-2 rounded-full ${location.pathname === '/' ? 'bg-green-100 text-green-600' : 'text-gray-500 hover:bg-green-100 hover:text-green-600'}`}
-          >
-            <HomeIcon />
-          </button>
-          <button 
-            onClick={() => navigate('/journal')} 
-            className={`p-2 rounded-full ${location.pathname === '/journal' ? 'bg-green-100 text-green-600' : 'text-gray-500 hover:bg-green-100 hover:text-green-600'}`}
-          >
-            <JournalIcon />
-          </button>
-          <button 
-            onClick={() => navigate('/profile')} 
-            className={`p-2 rounded-full ${location.pathname === '/profile' ? 'bg-green-100 text-green-600' : 'text-gray-500 hover:bg-green-100 hover:text-green-600'}`}
-          >
-            <ProfileIcon />
-          </button>
-        </nav>
+      <header className="bg-white shadow-sm fixed w-full top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-14 items-center">
+            <div className="flex-shrink-0">
+              <Link to="/" className="text-2xl font-bold text-green-600 hover:text-green-700 transition-colors">
+                ЕдAI
+              </Link>
+            </div>
+            <nav className="flex space-x-2">
+              <button 
+                onClick={() => navigate('/app')} 
+                className={`p-2 rounded-full ${location.pathname === '/app' ? 'bg-green-100 text-green-600' : 'text-gray-500 hover:bg-green-100 hover:text-green-600'}`}
+                title="Распознать еду"
+              >
+                <HomeIcon />
+              </button>
+              <button 
+                onClick={() => navigate('/journal')} 
+                className={`p-2 rounded-full ${location.pathname === '/journal' ? 'bg-green-100 text-green-600' : 'text-gray-500 hover:bg-green-100 hover:text-green-600'}`}
+                title="Дневник питания"
+              >
+                <JournalIcon />
+              </button>
+              <button 
+                onClick={() => navigate('/profile')} 
+                className={`p-2 rounded-full ${location.pathname === '/profile' ? 'bg-green-100 text-green-600' : 'text-gray-500 hover:bg-green-100 hover:text-green-600'}`}
+                title="Профиль"
+              >
+                <ProfileIcon />
+              </button>
+            </nav>
+          </div>
+        </div>
       </header>
 
       {/* Main Content */}
-      <main className="p-4 pb-20">
+      <main className="p-4 pb-20 pt-14">
         {children}
       </main>
     </div>

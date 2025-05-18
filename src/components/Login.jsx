@@ -75,7 +75,7 @@ export default function Login() {
       }
       await login(email, password);
       setLoginAttempts(0);
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       console.error('Ошибка аутентификации:', err);
       setLoginAttempts(prev => prev + 1);
@@ -103,7 +103,7 @@ export default function Login() {
     try {
       await loginWithGoogle();
       setLoginAttempts(0);
-      navigate('/');
+      navigate('/app');
     } catch (err) {
       console.error('Ошибка входа через Google:', err);
       setError('Ошибка при входе через Google');

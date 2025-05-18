@@ -1,8 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { doc, getDoc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, setDoc, collection, query, where, orderBy, getDocs } from 'firebase/firestore';
 import { db } from '../services/firebase';
 import Layout from './Layout';
+import { Line } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+} from 'chart.js';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const GOALS = [
   'Снижение веса',
@@ -30,6 +51,15 @@ export default function Profile() {
   const [saveStatus, setSaveStatus] = useState({ type: '', message: '' });
   const [calculatedNorm, setCalculatedNorm] = useState(null);
   const [isCalculating, setIsCalculating] = useState(false);
+  const [nutritionStats, setNutritionStats] = useState({
+    avgCalories: 0,
+    avgProtein: 0,
+    avgCarbs: 0,
+    avgFat: 0,
+    caloriesByDay: [],
+    dates: []
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -191,6 +221,81 @@ export default function Profile() {
     setIsEditingDailyGoal(false);
     handleSave({ dailyGoal, calorieNorm: dailyGoal });
   };
+
+  // Функция для загрузки статистики питания
+  const loadNutritionStats = async () => {
+    if (!currentUser) return;
+    
+    try {
+      setLoadingStats(true);
+      const entriesCollectionRef = collection(db, 'foodEntries');
+      const q = query(
+        entriesCollectionRef,
+        where('userId', '==', currentUser.uid),
+        orderBy('timestamp', 'desc')
+      );
+
+      const querySnapshot = await getDocs(q);
+      const entries = querySnapshot.docs.map(doc => ({
+        ...doc.data(),
+        timestamp: doc.data().timestamp?.toDate()
+      }));
+
+      // Группировка записей по дням
+      const entriesByDay = entries.reduce((acc, entry) => {
+        const date = entry.timestamp.toDateString();
+        if (!acc[date]) {
+          acc[date] = {
+            calories: 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            count: 0
+          };
+        }
+        acc[date].calories += entry.calories || 0;
+        acc[date].protein += entry.protein || 0;
+        acc[date].carbs += entry.carbs || 0;
+        acc[date].fat += entry.fat || 0;
+        acc[date].count++;
+        return acc;
+      }, {});
+
+      // Расчет средних значений
+      const days = Object.keys(entriesByDay).length;
+      const totals = Object.values(entriesByDay).reduce((acc, day) => ({
+        calories: acc.calories + day.calories,
+        protein: acc.protein + day.protein,
+        carbs: acc.carbs + day.carbs,
+        fat: acc.fat + day.fat
+      }), { calories: 0, protein: 0, carbs: 0, fat: 0 });
+
+      // Подготовка данных для графика
+      const sortedDates = Object.keys(entriesByDay).sort();
+      const caloriesData = sortedDates.map(date => entriesByDay[date].calories);
+      const formattedDates = sortedDates.map(date => {
+        const d = new Date(date);
+        return `${d.getDate()}.${d.getMonth() + 1}`;
+      });
+
+      setNutritionStats({
+        avgCalories: Math.round(totals.calories / days),
+        avgProtein: Math.round(totals.protein / days),
+        avgCarbs: Math.round(totals.carbs / days),
+        avgFat: Math.round(totals.fat / days),
+        caloriesByDay: caloriesData,
+        dates: formattedDates
+      });
+    } catch (error) {
+      console.error('Ошибка при загрузке статистики:', error);
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  useEffect(() => {
+    loadNutritionStats();
+  }, [currentUser]);
 
   if (loading) {
     return (
@@ -383,11 +488,85 @@ export default function Profile() {
                       disabled={!calculatedNorm || loading}
                       className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      {loading ? 'Сохранение...' : 'Сохранить'}
+                      {loading ? 'Сохранение...' : 'Установить как дневной лимит'}
                     </button>
                   </div>
                 </div>
               </div>
+            </div>
+            {/* Статистика питания */}
+            <div className="bg-white rounded-xl shadow-sm p-6">
+              <h3 className="text-lg font-semibold mb-4">Статистика питания в день</h3>
+              
+              {loadingStats ? (
+                <div className="text-center py-4">Загрузка статистики...</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <div className="text-sm text-blue-600 mb-1">Средняя калорийность</div>
+                      <div className="text-xl font-semibold text-blue-700">{nutritionStats.avgCalories} ккал</div>
+                    </div>
+                    <div className="bg-green-50 p-4 rounded-lg">
+                      <div className="text-sm text-green-600 mb-1">Средний белок</div>
+                      <div className="text-xl font-semibold text-green-700">{nutritionStats.avgProtein}г</div>
+                    </div>
+                    <div className="bg-purple-50 p-4 rounded-lg">
+                      <div className="text-sm text-purple-600 mb-1">Средние углеводы</div>
+                      <div className="text-xl font-semibold text-purple-700">{nutritionStats.avgCarbs}г</div>
+                    </div>
+                    <div className="bg-yellow-50 p-4 rounded-lg">
+                      <div className="text-sm text-yellow-600 mb-1">Средний жир</div>
+                      <div className="text-xl font-semibold text-yellow-700">{nutritionStats.avgFat}г</div>
+                    </div>
+                  </div>
+
+                  <div className="mt-6">
+                    <h4 className="text-sm font-medium text-gray-700 mb-3">Динамика калорийности</h4>
+                    <div className="h-64">
+                      <Line
+                        data={{
+                          labels: nutritionStats.dates,
+                          datasets: [
+                            {
+                              label: 'Калории',
+                              data: nutritionStats.caloriesByDay,
+                              borderColor: 'rgb(34, 197, 94)',
+                              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                              tension: 0.4,
+                              fill: true
+                            }
+                          ]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              display: false
+                            }
+                          },
+                          scales: {
+                            y: {
+                              beginAtZero: true,
+                              title: {
+                                display: true,
+                                text: 'Калории'
+                              }
+                            },
+                            x: {
+                              title: {
+                                display: true,
+                                text: 'Дата'
+                              }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
             <div className="pt-4 border-t mt-4">
               <button
